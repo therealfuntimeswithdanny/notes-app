@@ -1,2 +1,2 @@
 # MBD Notes
-A simple easy to Use notes app built in Cloudflare Workers
+A simple easy to use notes app built in Cloudflare Workers
