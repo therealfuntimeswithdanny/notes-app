@@ -1,0 +1,8 @@
+name = "notes-app-auth"
+type = "javascript"
+
+kv_namespaces = [
+  { binding = "USERS", id = "your_users_namespace_id" },
+  { binding = "SESSIONS", id = "your_sessions_namespace_id" },
+  { binding = "NOTES", id = "your_notes_namespace_id" }
+]
