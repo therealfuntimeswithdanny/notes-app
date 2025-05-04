@@ -3,7 +3,7 @@ export default {
     const url = new URL(request.url);
     const { pathname } = url;
 
-    // Helper: Parse cookie value.
+    // Helper: Parse cookie value from headers.
     function getCookie(request, name) {
       const cookie = request.headers.get("Cookie");
       if (!cookie) return null;
@@ -11,7 +11,7 @@ export default {
       return match ? match[2] : null;
     }
 
-    // Helper: Retrieve username from session token.
+    // Helper: Retrieve the username stored in a session.
     async function getUserFromSession(request) {
       const sessionToken = getCookie(request, "session");
       if (!sessionToken) return null;
@@ -20,23 +20,22 @@ export default {
     }
 
     // ------------------------------------------------------------------
-    // Route: GET "/" – Serve the main HTML page.
+    // Route: GET "/" – Serve the main page.
     // ------------------------------------------------------------------
     if (pathname === "/" && request.method === "GET") {
       const username = await getUserFromSession(request);
       let html = "";
       if (username) {
-        // Authenticated user – render a two-column web app layout.
+        // Main app view (for authenticated users)
         html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>My Notes</title>
-  <!-- Font Awesome icons -->
   <script src="https://kit.fontawesome.com/0ca27f8db1.js" crossorigin="anonymous"></script>
   <style>
-    /* Reset and basic styling */
+    /* Reset and basic styles */
     * { box-sizing: border-box; }
     body { font-family: Arial, sans-serif; background: #f4f4f9; margin: 0; padding: 0; }
     header { background: #4a90e2; color: #fff; padding: 20px; text-align: center; position: relative; }
@@ -54,11 +53,26 @@ export default {
     }
     .logout-btn:hover { background: #c0392b; }
     main { padding: 20px; max-width: 1200px; margin: 20px auto; }
-    /* Two column app layout */
+    /* Two-column layout */
     .app-container { display: flex; gap: 20px; }
-    .notes-panel { flex: 0 0 35%; background: #fff; padding: 15px; border: 1px solid #ddd; border-radius: 4px; overflow-y: auto; max-height: 80vh; }
-    .editor-panel { flex: 1; background: #fff; padding: 15px; border: 1px solid #ddd; border-radius: 4px; }
-    .notes-panel h2, .editor-panel h2 { margin-top: 0; }
+    .notes-panel {
+      flex: 0 0 35%;
+      background: #fff;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      overflow-y: auto;
+      max-height: 80vh;
+    }
+    .editor-panel {
+      flex: 1;
+      background: #fff;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .notes-panel h2,
+    .editor-panel h2 { margin-top: 0; }
     /* Editor styling */
     .editor-toolbar { margin-bottom: 5px; }
     .editor-toolbar button {
@@ -91,7 +105,7 @@ export default {
       transition: background 0.2s;
     }
     .save-note:hover, #cancel-edit:hover { background: #3a78c2; }
-    /* Note styling in left panel */
+    /* Notes list styling */
     .note {
       background: #fff;
       padding: 10px 15px;
@@ -128,7 +142,7 @@ export default {
       <!-- Left Panel: Notes List -->
       <section class="notes-panel" id="notes">
         <h2>Your Notes</h2>
-        <!-- Notes will be dynamically injected here -->
+        <!-- User notes will appear here -->
       </section>
       <!-- Right Panel: Rich Text Editor -->
       <section class="editor-panel">
@@ -147,18 +161,12 @@ export default {
         </div>
       </section>
     </div>
-    <p>&copy; 2024-2028 Made by Danny UK <i>A Funtimes Media Company</i><br><a href="">View Open Source Code</p>
   </main>
   <script>
-    // Rich text command execution.
     function execCmd(command) {
       document.execCommand(command, false, null);
     }
-
-    // Global variable to track the note ID if editing.
     let editingNoteId = null;
-
-    // Load notes from the API.
     async function loadNotes() {
       try {
         const resp = await fetch('/notes');
@@ -168,18 +176,12 @@ export default {
         notes.forEach(note => {
           const noteDiv = document.createElement('div');
           noteDiv.className = 'note';
-
-          // Note text container.
           const noteText = document.createElement('p');
           noteText.className = 'note-text';
           noteText.innerHTML = note.text;
           noteDiv.appendChild(noteText);
-
-          // Container for edit and delete icons.
           const iconsDiv = document.createElement('div');
           iconsDiv.className = 'icons';
-
-          // Edit icon.
           const iconEdit = document.createElement('i');
           iconEdit.className = 'fa-solid fa-pen-to-square';
           iconEdit.title = "Edit note";
@@ -188,8 +190,6 @@ export default {
             editNote(note);
           });
           iconsDiv.appendChild(iconEdit);
-
-          // Delete icon.
           const iconDelete = document.createElement('i');
           iconDelete.className = 'fa-solid fa-trash';
           iconDelete.title = "Delete note";
@@ -201,7 +201,6 @@ export default {
             }
           });
           iconsDiv.appendChild(iconDelete);
-
           noteDiv.appendChild(iconsDiv);
           notesDiv.appendChild(noteDiv);
         });
@@ -209,8 +208,6 @@ export default {
         console.error('Error fetching notes:', error);
       }
     }
-
-    // Populate editor to edit a note.
     function editNote(note) {
       const editor = document.getElementById('editor');
       editor.innerHTML = note.text;
@@ -220,8 +217,6 @@ export default {
       document.getElementById('cancel-edit').style.display = 'inline-block';
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-
-    // Cancel editing mode.
     function cancelEdit() {
       const editor = document.getElementById('editor');
       editor.innerHTML = '';
@@ -230,8 +225,6 @@ export default {
       document.getElementById('form-header').textContent = 'New Note';
       document.getElementById('cancel-edit').style.display = 'none';
     }
-
-    // Save a new note or update the existing one.
     async function saveNote() {
       const editor = document.getElementById('editor');
       const richText = editor.innerHTML;
@@ -266,75 +259,160 @@ export default {
         console.error('Error saving note:', error);
       }
     }
-
-    // Log out the user.
     async function logout() {
       await fetch('/logout', { method: 'POST' });
       location.reload();
     }
-
-    // Load notes when the page is loaded.
     loadNotes();
   </script>
 </body>
 </html>`;
       } else {
-        // Unauthenticated user – show sign in and sign up forms.
+        // Unauthenticated view: The styled authentication page.
         html = `<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-  <title>Sign In / Sign Up</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign In | My Notes</title>
+  <script src="https://kit.fontawesome.com/0ca27f8db1.js" crossorigin="anonymous"></script>
   <style>
-    body { font-family: Arial, sans-serif; background: #f4f4f9; padding: 20px; }
-    form { background: #fff; padding: 15px; border: 1px solid #ddd; margin-bottom: 20px; border-radius: 4px; }
-    input { display: block; width: 95%; padding: 8px; margin: 10px auto; border: 1px solid #ccc; border-radius: 4px; }
-    button { background: #4a90e2; color: #fff; border: none; padding: 10px 15px; cursor: pointer; border-radius: 4px; }
-    button:hover { background: #3a78c2; }
+    /* Reset */
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
+    body { background: #f4f4f9; display: flex; justify-content: center; align-items: center; height: 100vh; }
+    /* Auth container */
+    .auth-container {
+      background: #fff;
+      padding: 40px;
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      text-align: center;
+      max-width: 400px;
+      width: 100%;
+    }
+    /* Logo */
+    .logo {
+      font-size: 40px;
+      color: #4a90e2;
+      margin-bottom: 15px;
+    }
+    /* Headings and text */
+    .auth-container h1 {
+      font-size: 24px;
+      margin-bottom: 10px;
+      color: #333;
+    }
+    .auth-container p {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 20px;
+    }
+    /* Input groups */
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 15px;
+    }
+    .input-group input {
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 16px;
+    }
+    /* Buttons */
+    .auth-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    .btn {
+      display: block;
+      padding: 12px;
+      font-size: 16px;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+      width: 100%;
+    }
+    .btn-signin {
+      background: #4a90e2;
+      color: white;
+    }
+    .btn-signin:hover {
+      background: #357abd;
+    }
+    .btn-signup {
+      background: #ddd;
+      color: #333;
+    }
+    .btn-signup:hover {
+      background: #ccc;
+    }
+    /* Footer */
+    .auth-footer {
+      margin-top: 15px;
+      font-size: 14px;
+    }
+    .auth-footer a {
+      color: #4a90e2;
+      text-decoration: none;
+    }
+    .auth-footer a:hover {
+      text-decoration: underline;
+    }
+    hr {
+      margin: 20px 0;
+      border: none;
+      border-top: 1px solid #eee;
+    }
   </style>
 </head>
 <body>
-  <h1>Sign In / Sign Up</h1>
-  <div>
-    <h2>Sign Up</h2>
-    <form id="signup-form">
-      <input type="text" id="signup-username" placeholder="Username" required />
-      <input type="password" id="signup-password" placeholder="Password" required />
-      <button type="submit">Sign Up</button>
-    </form>
-  </div>
-  <div>
-    <h2>Login</h2>
-    <form id="login-form">
-      <input type="text" id="login-username" placeholder="Username" required />
-      <input type="password" id="login-password" placeholder="Password" required />
-      <button type="submit">Login</button>
-    </form>
+  <div class="auth-container">
+    <div class="logo">
+    <i class="fa-solid fa-cloud fa-2xl" style="color: #B197FC;"></i>
+    </div>
+    <h1>Sign in With your FTM Cloud Account</h1>
+    <p><b>MBD Notes <i class="fa-solid fa-circle-check" style="color: #1185fe;"></i></b> Wants access your My Online database and read your Username and Password
+    <br></p>
+    
+    <!-- Sign In Form -->
+    <div class="input-group">
+      <input type="text" id="login-username" placeholder="Username" required>
+    </div>
+    <div class="input-group">
+      <input type="password" id="login-password" placeholder="Password" required>
+    </div>
+    <div class="auth-buttons">
+      <button class="btn btn-signin" id="btn-signin">Sign In</button>
+    </div>
+    <hr>
+    <!-- Sign Up Form -->
+    <div class="input-group">
+      <input type="text" id="signup-username" placeholder="Username" required>
+    </div>
+    <div class="input-group">
+      <input type="password" id="signup-password" placeholder="Password" required>
+    </div>
+    <div class="auth-buttons">
+      <button class="btn btn-signup" id="btn-signup">Create an Account</button>
+    </div>
+    <div class="auth-footer">
+    <i><i class="fa-solid fa-circle-check" style="color: #1185fe;"></i> MBD Notes is an <b>Offical app Developed by Funtimes Media</b></i>
+      <p>Forgot your password? <a href="https://mbdio.uk/ftmcloudhelp">Contact us</a></p>
+    </div>
   </div>
   <script>
-    document.getElementById('signup-form').onsubmit = async function(e) {
+    // Sign In event listener
+    document.getElementById('btn-signin').onclick = async function(e) {
       e.preventDefault();
-      const username = document.getElementById('signup-username').value;
-      const password = document.getElementById('signup-password').value;
-      const resp = await fetch('/signup', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ username, password })
-      });
-      const result = await resp.json();
-      if(result.success) {
-         alert('Signup successful! Please log in.');
-         location.reload();
-      } else {
-         alert(result.message);
+      const username = document.getElementById('login-username').value.trim();
+      const password = document.getElementById('login-password').value.trim();
+      if(!username || !password) {
+        alert("Please fill in both fields");
+        return;
       }
-    };
-    
-    document.getElementById('login-form').onsubmit = async function(e) {
-      e.preventDefault();
-      const username = document.getElementById('login-username').value;
-      const password = document.getElementById('login-password').value;
       const resp = await fetch('/login', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -342,9 +420,30 @@ export default {
       });
       const result = await resp.json();
       if(result.success) {
-         location.reload();
+        location.reload();
       } else {
-         alert(result.message);
+        alert(result.message);
+      }
+    };
+    // Sign Up event listener
+    document.getElementById('btn-signup').onclick = async function(e) {
+      e.preventDefault();
+      const username = document.getElementById('signup-username').value.trim();
+      const password = document.getElementById('signup-password').value.trim();
+      if(!username || !password) {
+        alert("Please fill in both fields");
+        return;
+      }
+      const resp = await fetch('/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const result = await resp.json();
+      if(result.success) {
+        alert("Signup successful! Please sign in.");
+      } else {
+        alert(result.message);
       }
     };
   </script>
@@ -360,21 +459,23 @@ export default {
     if (pathname === "/signup" && request.method === "POST") {
       const { username, password } = await request.json();
       if (!username || !password) {
-        return new Response(
-          JSON.stringify({ success: false, message: "Username and password required" }),
-          { headers: { "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ success: false, message: "Username and password required" }), {
+          headers: { "Content-Type": "application/json" }
+        });
       }
+      // Check if the user already exists.
       const existing = await env.USERS.get(username);
       if (existing) {
-        return new Response(
-          JSON.stringify({ success: false, message: "User already exists" }),
-          { headers: { "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ success: false, message: "User already exists" }), {
+          headers: { "Content-Type": "application/json" }
+        });
       }
+      // Store user (plain text for demo purposes; use hashing in production)
       const user = { username, password };
       await env.USERS.put(username, JSON.stringify(user));
-      return new Response(JSON.stringify({ success: true }), { headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { "Content-Type": "application/json" }
+      });
     }
 
     // ------------------------------------------------------------------
@@ -383,29 +484,27 @@ export default {
     if (pathname === "/login" && request.method === "POST") {
       const { username, password } = await request.json();
       if (!username || !password) {
-        return new Response(
-          JSON.stringify({ success: false, message: "Username and password required" }),
-          { headers: { "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ success: false, message: "Username and password required" }), {
+          headers: { "Content-Type": "application/json" }
+        });
       }
       const userData = await env.USERS.get(username);
       if (!userData) {
-        return new Response(
-          JSON.stringify({ success: false, message: "Invalid credentials" }),
-          { headers: { "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ success: false, message: "Invalid credentials" }), {
+          headers: { "Content-Type": "application/json" }
+        });
       }
       const user = JSON.parse(userData);
       if (user.password !== password) {
-        return new Response(
-          JSON.stringify({ success: false, message: "Invalid credentials" }),
-          { headers: { "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ success: false, message: "Invalid credentials" }), {
+          headers: { "Content-Type": "application/json" }
+        });
       }
+      // Create a session token.
       const sessionToken = crypto.randomUUID();
       await env.SESSIONS.put(sessionToken, username);
       return new Response(JSON.stringify({ success: true }), {
-        headers: {
+        headers: { 
           "Content-Type": "application/json",
           "Set-Cookie": `session=${sessionToken}; HttpOnly; Path=/`
         }
@@ -423,21 +522,21 @@ export default {
       return new Response(JSON.stringify({ success: true }), {
         headers: {
           "Content-Type": "application/json",
-          "Set-Cookie": `session=deleted; HttpOnly; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT`
+          "Set-Cookie": "session=deleted; HttpOnly; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT"
         }
       });
     }
 
     // ------------------------------------------------------------------
-    // Route: "/notes" – API endpoints for notes (requires authentication)
+    // Route: "/notes" – API endpoints (requires authentication)
     // ------------------------------------------------------------------
     if (pathname === "/notes") {
       const username = await getUserFromSession(request);
       if (!username) {
-        return new Response(
-          JSON.stringify({ success: false, message: "Not authenticated" }),
-          { status: 401, headers: { "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ success: false, message: "Not authenticated" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" }
+        });
       }
       const notesKey = `notes:${username}`;
 
@@ -468,7 +567,7 @@ export default {
         });
       }
 
-      // DELETE: Remove a note by its id.
+      // DELETE: Remove a note by its ID.
       if (request.method === "DELETE") {
         const id = url.searchParams.get("id");
         const data = await env.NOTES.get(notesKey);
@@ -479,7 +578,7 @@ export default {
           headers: { "Content-Type": "application/json" }
         });
       }
-      
+
       // PUT: Update an existing note.
       if (request.method === "PUT") {
         const { id, text } = await request.json();
