@@ -3,7 +3,7 @@ export default {
     const url = new URL(request.url);
     const { pathname } = url;
 
-    // Helper: Parse cookie value from headers.
+    // Helper: Parse cookie value.
     function getCookie(request, name) {
       const cookie = request.headers.get("Cookie");
       if (!cookie) return null;
@@ -11,7 +11,7 @@ export default {
       return match ? match[2] : null;
     }
 
-    // Helper: Retrieve the username stored in a session.
+    // Helper: Retrieve username from session token stored in KV.
     async function getUserFromSession(request) {
       const sessionToken = getCookie(request, "session");
       if (!sessionToken) return null;
@@ -20,25 +20,69 @@ export default {
     }
 
     // ------------------------------------------------------------------
-    // Route: GET "/" – Serve the main page.
+    // Route: GET "/" – Serve either the main app (if authenticated) or auth page.
     // ------------------------------------------------------------------
     if (pathname === "/" && request.method === "GET") {
       const username = await getUserFromSession(request);
       let html = "";
       if (username) {
-        // Main app view (for authenticated users)
+        // Authenticated user view with dark mode toggle & responsive layout.
         html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>My Notes</title>
+  <!-- Font Awesome Icons -->
   <script src="https://kit.fontawesome.com/0ca27f8db1.js" crossorigin="anonymous"></script>
   <style>
-    /* Reset and basic styles */
+    /* Base Reset and Variables */
     * { box-sizing: border-box; }
-    body { font-family: Arial, sans-serif; background: #f4f4f9; margin: 0; padding: 0; }
-    header { background: #4a90e2; color: #fff; padding: 20px; text-align: center; position: relative; }
+    :root {
+      --bg-color: #f4f4f9;
+      --header-bg: #4a90e2;
+      --header-text: #fff;
+      --panel-bg: #fff;
+      --panel-border: #ddd;
+      --text-color: #333;
+      --btn-bg: #4a90e2;
+      --btn-hover: #3a78c2;
+    }
+    body.dark {
+      --bg-color: #222;
+      --header-bg: #333;
+      --header-text: #fff;
+      --panel-bg: #2c2c2c;
+      --panel-border: #444;
+      --text-color: #ddd;
+      --btn-bg: #555;
+      --btn-hover: #666;
+    }
+    body { 
+      font-family: Arial, sans-serif; 
+      background: var(--bg-color); 
+      margin: 0; 
+      padding: 0; 
+      color: var(--text-color);
+    }
+    header { 
+      background: var(--header-bg);
+      color: var(--header-text);
+      padding: 20px; 
+      text-align: center;
+      position: relative; 
+    }
+    /* Dark mode toggle button */
+    .dark-mode-toggle {
+      background: transparent;
+      border: none;
+      color: var(--header-text);
+      font-size: 1.5rem;
+      cursor: pointer;
+      position: absolute;
+      top: 20px;
+      left: 20px;
+    }
     .logout-btn {
       background: #e74c3c;
       color: #fff;
@@ -52,28 +96,35 @@ export default {
       transition: background 0.2s;
     }
     .logout-btn:hover { background: #c0392b; }
-    main { padding: 20px; max-width: 1200px; margin: 20px auto; }
-    /* Two-column layout */
-    .app-container { display: flex; gap: 20px; }
+    main { 
+      padding: 20px; 
+      max-width: 1200px; 
+      margin: 20px auto; 
+    }
+    /* Two Column Layout */
+    .app-container { 
+      display: flex; 
+      gap: 20px; 
+    }
+    .notes-panel, .editor-panel {
+      background: var(--panel-bg);
+      padding: 15px;
+      border: 1px solid var(--panel-border);
+      border-radius: 4px;
+    }
     .notes-panel {
       flex: 0 0 35%;
-      background: #fff;
-      padding: 15px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
       overflow-y: auto;
       max-height: 80vh;
     }
     .editor-panel {
       flex: 1;
-      background: #fff;
-      padding: 15px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
     }
     .notes-panel h2,
-    .editor-panel h2 { margin-top: 0; }
-    /* Editor styling */
+    .editor-panel h2 {
+      margin-top: 0;
+    }
+    /* Editor Styling */
     .editor-toolbar { margin-bottom: 5px; }
     .editor-toolbar button {
       background: #fff;
@@ -90,12 +141,12 @@ export default {
       border-radius: 4px;
       padding: 10px;
       min-height: 200px;
-      background: #fff;
+      background: var(--panel-bg);
     }
     .editor:empty:before { content: attr(placeholder); color: #888; }
     .editor-buttons { margin-top: 10px; }
     .save-note, #cancel-edit {
-      background: #4a90e2;
+      background: var(--btn-bg);
       color: #fff;
       border: none;
       padding: 10px 15px;
@@ -104,12 +155,12 @@ export default {
       cursor: pointer;
       transition: background 0.2s;
     }
-    .save-note:hover, #cancel-edit:hover { background: #3a78c2; }
-    /* Notes list styling */
+    .save-note:hover, #cancel-edit:hover { background: var(--btn-hover); }
+    /* Notes List Styling */
     .note {
-      background: #fff;
+      background: var(--panel-bg);
       padding: 10px 15px;
-      border: 1px solid #ddd;
+      border: 1px solid var(--panel-border);
       margin-bottom: 10px;
       border-radius: 4px;
       position: relative;
@@ -117,6 +168,7 @@ export default {
       transition: background 0.2s;
     }
     .note:hover { background: #fafafa; }
+    body.dark .note:hover { background: #3a3a3a; }
     .note .note-text { margin: 0; }
     .note .icons {
       position: absolute;
@@ -129,11 +181,20 @@ export default {
       color: #888;
       transition: color 0.2s;
     }
-    .note .icons i:hover { color: #4a90e2; }
+    .note .icons i:hover { color: var(--btn-bg); }
+    /* Responsive: Stack columns on smaller screens */
+    @media (max-width: 768px) {
+      .app-container {
+        flex-direction: column;
+      }
+      .notes-panel { max-height: none; }
+    }
   </style>
 </head>
 <body>
   <header>
+    <!-- Dark Mode Toggle Button -->
+    <button class="dark-mode-toggle" onclick="toggleDarkMode()"><i class="fa-solid fa-moon"></i></button>
     <h1>Welcome, ${username}!</h1>
     <button class="logout-btn" onclick="logout()">Logout</button>
   </header>
@@ -142,7 +203,6 @@ export default {
       <!-- Left Panel: Notes List -->
       <section class="notes-panel" id="notes">
         <h2>Your Notes</h2>
-        <!-- User notes will appear here -->
       </section>
       <!-- Right Panel: Rich Text Editor -->
       <section class="editor-panel">
@@ -163,14 +223,30 @@ export default {
     </div>
   </main>
   <script>
+    // Toggle dark mode by toggling the "dark" class on the body.
+    function toggleDarkMode() {
+      document.body.classList.toggle('dark');
+      // Optionally, persist the user's theme preference in localStorage
+      if(document.body.classList.contains('dark')) {
+        localStorage.setItem('theme', 'dark');
+      } else {
+        localStorage.setItem('theme', 'light');
+      }
+    }
+    // On load, check the user's saved theme.
+    if(localStorage.getItem('theme') === 'dark') {
+      document.body.classList.add('dark');
+    }
+
+    // Execute rich text formatting commands.
     function execCmd(command) {
       document.execCommand(command, false, null);
     }
     let editingNoteId = null;
     async function loadNotes() {
       try {
-        const resp = await fetch('/notes');
-        const notes = await resp.json();
+        const response = await fetch('/notes');
+        const notes = await response.json();
         const notesDiv = document.getElementById('notes');
         notesDiv.innerHTML = '<h2>Your Notes</h2>';
         notes.forEach(note => {
@@ -268,7 +344,7 @@ export default {
 </body>
 </html>`;
       } else {
-        // Unauthenticated view: The styled authentication page.
+        // Unauthenticated view – Updated auth page with your provided code.
         html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -293,10 +369,10 @@ export default {
     /* Logo */
     .logo {
       font-size: 40px;
-      color: #4a90e2;
+      color: #B197FC;
       margin-bottom: 15px;
     }
-    /* Headings and text */
+    /* Headings & Text */
     .auth-container h1 {
       font-size: 24px;
       margin-bottom: 10px;
@@ -371,12 +447,13 @@ export default {
 <body>
   <div class="auth-container">
     <div class="logo">
-    <i class="fa-solid fa-cloud fa-2xl" style="color: #B197FC;"></i>
+      <i class="fa-solid fa-cloud fa-2xl" style="color: #B197FC;"></i>
     </div>
     <h1>Sign in With your FTM Cloud Account</h1>
-    <p><b>MBD Notes <i class="fa-solid fa-circle-check" style="color: #1185fe;"></i></b> Wants access your My Online database and read your Username and Password
-    <br></p>
-    
+    <p>
+      <b>MBD Notes <i class="fa-solid fa-circle-check" style="color: #1185fe;"></i></b>
+      Wants access your My Online database and read your Username and Password<br>
+    </p>
     <!-- Sign In Form -->
     <div class="input-group">
       <input type="text" id="login-username" placeholder="Username" required>
@@ -399,17 +476,20 @@ export default {
       <button class="btn btn-signup" id="btn-signup">Create an Account</button>
     </div>
     <div class="auth-footer">
-    <i><i class="fa-solid fa-circle-check" style="color: #1185fe;"></i> MBD Notes is an <b>Offical app Developed by Funtimes Media</b></i>
+      <i>
+        <i class="fa-solid fa-circle-check" style="color: #1185fe;"></i>
+        MBD Notes is an <b>Official app Developed by Funtimes Media</b>
+      </i>
       <p>Forgot your password? <a href="https://mbdio.uk/ftmcloudhelp">Contact us</a></p>
     </div>
   </div>
   <script>
-    // Sign In event listener
+    // Sign In event listener.
     document.getElementById('btn-signin').onclick = async function(e) {
       e.preventDefault();
       const username = document.getElementById('login-username').value.trim();
       const password = document.getElementById('login-password').value.trim();
-      if(!username || !password) {
+      if (!username || !password) {
         alert("Please fill in both fields");
         return;
       }
@@ -419,18 +499,18 @@ export default {
         body: JSON.stringify({ username, password })
       });
       const result = await resp.json();
-      if(result.success) {
+      if (result.success) {
         location.reload();
       } else {
         alert(result.message);
       }
     };
-    // Sign Up event listener
+    // Sign Up event listener.
     document.getElementById('btn-signup').onclick = async function(e) {
       e.preventDefault();
       const username = document.getElementById('signup-username').value.trim();
       const password = document.getElementById('signup-password').value.trim();
-      if(!username || !password) {
+      if (!username || !password) {
         alert("Please fill in both fields");
         return;
       }
@@ -440,7 +520,7 @@ export default {
         body: JSON.stringify({ username, password })
       });
       const result = await resp.json();
-      if(result.success) {
+      if (result.success) {
         alert("Signup successful! Please sign in.");
       } else {
         alert(result.message);
@@ -450,7 +530,9 @@ export default {
 </body>
 </html>`;
       }
-      return new Response(html, { headers: { "Content-Type": "text/html;charset=UTF-8" } });
+      return new Response(html, {
+        headers: { "Content-Type": "text/html;charset=UTF-8" }
+      });
     }
 
     // ------------------------------------------------------------------
@@ -463,15 +545,13 @@ export default {
           headers: { "Content-Type": "application/json" }
         });
       }
-      // Check if the user already exists.
       const existing = await env.USERS.get(username);
       if (existing) {
         return new Response(JSON.stringify({ success: false, message: "User already exists" }), {
           headers: { "Content-Type": "application/json" }
         });
       }
-      // Store user (plain text for demo purposes; use hashing in production)
-      const user = { username, password };
+      const user = { username, password }; // Note: Use password hashing in production.
       await env.USERS.put(username, JSON.stringify(user));
       return new Response(JSON.stringify({ success: true }), {
         headers: { "Content-Type": "application/json" }
@@ -500,11 +580,10 @@ export default {
           headers: { "Content-Type": "application/json" }
         });
       }
-      // Create a session token.
       const sessionToken = crypto.randomUUID();
       await env.SESSIONS.put(sessionToken, username);
       return new Response(JSON.stringify({ success: true }), {
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
           "Set-Cookie": `session=${sessionToken}; HttpOnly; Path=/`
         }
@@ -528,7 +607,7 @@ export default {
     }
 
     // ------------------------------------------------------------------
-    // Route: "/notes" – API endpoints (requires authentication)
+    // Route: "/notes" – API endpoints for notes (requires authentication)
     // ------------------------------------------------------------------
     if (pathname === "/notes") {
       const username = await getUserFromSession(request);
